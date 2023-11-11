@@ -1,184 +1,176 @@
-import { useMemo, useState, useEffect } from 'react';
-import { addHours, differenceInSeconds } from 'date-fns';
+import { useState, useEffect } from "react";
+import { addHours, differenceInSeconds } from "date-fns";
+import DatePicker, { registerLocale } from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
-import Swal from 'sweetalert2';
-import 'sweetalert2/dist/sweetalert2.min.css';
-
-import Modal from 'react-modal';
-
-import DatePicker, { registerLocale } from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-
-import es from 'date-fns/locale/es';
-import { useCalendarStore, useUiStore } from '../../hooks';
-
-
-registerLocale( 'es', es );
-
-
-const customStyles = {
-    content: {
-      top: '50%',
-      left: '50%',
-      right: 'auto',
-      bottom: 'auto',
-      marginRight: '-50%',
-      transform: 'translate(-50%, -50%)',
-    },
-};
-
-Modal.setAppElement('#root');
-
+import es from "date-fns/locale/es";
+import { useCalendarStore, useUiStore } from "../../hooks";
+import { Modal, Input, notification, Button } from "antd";
+import { Grid } from "@mui/material";
+const { TextArea } = Input;
+registerLocale("es", es);
 export const CalendarModal = () => {
+  const { isDateModalOpen, closeDateModal } = useUiStore();
+  const { activeEvent, startSavingEvent } = useCalendarStore();
 
-    const { isDateModalOpen, closeDateModal } = useUiStore();
-    const { activeEvent, startSavingEvent } = useCalendarStore();
+  const [formSubmitted, setFormSubmitted] = useState(false);
+  const [formValues, setFormValues] = useState({
+    title: "",
+    notes: "",
+    start: new Date(),
+    end: addHours(new Date(), 2),
+  });
 
-    const [ formSubmitted, setFormSubmitted ] = useState(false);
+  useEffect(() => {
+    if (activeEvent !== null) {
+      setFormValues({ ...activeEvent });
+    }
+  }, [activeEvent]);
 
-    const [formValues, setFormValues] = useState({
-        title: '',
-        notes: '',
-        start: new Date(),
-        end: addHours( new Date(), 2),
+  const onInputChanged = ({ target }) => {
+    setFormValues({
+      ...formValues,
+      [target.name]: target.value,
     });
+  };
 
-    const titleClass = useMemo(() => {
-        if ( !formSubmitted ) return '';
+  const onDateChanged = (event, changing) => {
+    setFormValues({
+      ...formValues,
+      [changing]: event,
+    });
+  };
+  const onCloseModal = () => {
+    closeDateModal();
+  };
 
-        return ( formValues.title.length > 0 )
-            ? ''
-            : 'is-invalid';
+  const [api, contextHolder] = notification.useNotification();
+  const openNotificationWithIcon = (type, msg, dscrpt) => {
+    api[type]({
+      message: msg,
+      description: dscrpt,
+    });
+  };
+  const onSubmit = async (event) => {
+    event.preventDefault();
+    setFormSubmitted(true);
 
-    }, [ formValues.title, formSubmitted ])
+    const difference = differenceInSeconds(formValues.end, formValues.start);
 
-    useEffect(() => {
-      if ( activeEvent !== null ) {
-          setFormValues({ ...activeEvent });
-      }    
-      
-    }, [ activeEvent ])
-    
-
-
-    const onInputChanged = ({ target }) => {
-        setFormValues({
-            ...formValues,
-            [target.name]: target.value
-        })
+    if (isNaN(difference) || difference <= 0) {
+      openNotificationWithIcon(
+        "error",
+        "Fechas incorrectas",
+        "Revisar las fechas ingresadas"
+      );
+      return;
     }
 
-    const onDateChanged = ( event, changing ) => {
-        setFormValues({
-            ...formValues,
-            [changing]: event
-        })
-    }
-
-    const onCloseModal = () => {
-        closeDateModal();
-    }
-
-    const onSubmit = async( event ) => {
-        event.preventDefault();
-        setFormSubmitted(true);
-
-        const difference = differenceInSeconds( formValues.end, formValues.start );
-        
-        if ( isNaN( difference ) || difference <= 0 ) {
-            Swal.fire('Fechas incorrectas','Revisar las fechas ingresadas','error');
-            return;
-        }
-        
-        if ( formValues.title.length <= 0 ) return;
-        
-        console.log(formValues);
-
-        // TODO: 
-        await startSavingEvent( formValues );
-        closeDateModal();
-        setFormSubmitted(false);
-    }
-
-
+    if (formValues.title.length <= 0) return;
+    await startSavingEvent(formValues);
+    closeDateModal();
+    setFormSubmitted(false);
+  };
 
   return (
     <Modal
-        isOpen={ isDateModalOpen }
-        onRequestClose={ onCloseModal }
-        style={ customStyles }
-        className="modal"
-        overlayClassName="modal-fondo"
-        closeTimeoutMS={ 200 }
+      title="New event"
+      style={{
+        top: 20,
+      }}
+      open={isDateModalOpen}
+      onOk={() => onCloseModal()}
+      onCancel={() => onCloseModal()}
+      footer={[]}
     >
-        <h1> Nuevo evento </h1>
-        <hr />
-        <form className="container" onSubmit={ onSubmit }>
+      {contextHolder}
+      <Grid
+        display={"flex"}
+        justifyContent={"center"}
+        alignItems={"center"}
+        margin={"auto"}
+        container
+      >
+        <form
+          style={{ width: "100%" }}
+          className="container"
+          onSubmit={onSubmit}
+        >
+          <Grid
+            marginY={1}
+            display={"flex"}
+            justifyContent={"space-between"}
+            alignItems={"center"}
+            item
+            xs={12}
+          >
+            <label>Fecha y hora inicio</label>
+            <DatePicker
+              selected={formValues.start}
+              onChange={(event) => onDateChanged(event, "start")}
+              dateFormat="Pp"
+              showTimeSelect
+              locale="es"
+              timeCaption="Hora"
+            />
+          </Grid>
+          <Grid
+            marginY={1}
+            display={"flex"}
+            justifyContent={"space-between"}
+            alignItems={"center"}
+            item
+            xs={12}
+          >
+            <label>Fecha y hora fin</label>
+            <DatePicker
+              minDate={formValues.start}
+              selected={formValues.end}
+              onChange={(event) => onDateChanged(event, "end")}
+              dateFormat="Pp"
+              showTimeSelect
+              locale="es"
+              timeCaption="Hora"
+            />
+          </Grid>
 
-            <div className="form-group mb-2">
-                <label>Fecha y hora inicio</label>
-                <DatePicker 
-                    selected={ formValues.start }
-                    onChange={ (event) => onDateChanged(event, 'start') }
-                    className="form-control"
-                    dateFormat="Pp"
-                    showTimeSelect
-                    locale="es"
-                    timeCaption="Hora"
-                />
-            </div>
-
-            <div className="form-group mb-2">
-                <label>Fecha y hora fin</label>
-                <DatePicker 
-                    minDate={ formValues.start }
-                    selected={ formValues.end }
-                    onChange={ (event) => onDateChanged(event, 'end') }
-                    className="form-control"
-                    dateFormat="Pp"
-                    showTimeSelect
-                    locale="es"
-                    timeCaption="Hora"
-                />
-            </div>
-
-            <hr />
-            <div className="form-group mb-2">
-                <label>Titulo y notas</label>
-                <input 
-                    type="text" 
-                    className={ `form-control ${ titleClass }`}
-                    placeholder="Título del evento"
-                    name="title"
-                    autoComplete="off"
-                    value={ formValues.title }
-                    onChange={ onInputChanged }
-                />
-                <small id="emailHelp" className="form-text text-muted">Una descripción corta</small>
-            </div>
-
-            <div className="form-group mb-2">
-                <textarea 
-                    type="text" 
-                    className="form-control"
-                    placeholder="Notas"
-                    rows="5"
-                    name="notes"
-                    value={ formValues.notes }
-                    onChange={ onInputChanged }
-                ></textarea>
-                <small id="emailHelp" className="form-text text-muted">Información adicional</small>
-            </div>
-
-            <button
-                type="submit"
-                className="btn btn-outline-primary btn-block"
-            >
-                <i className="far fa-save"></i>
-                <span> Guardar</span>
-            </button>
-
+          <hr />
+          <Grid
+            marginY={1}
+            display={"flex"}
+            justifyContent={"space-between"}
+            alignItems={"center"}
+            item
+            xs={12}
+          >
+            {" "}
+            <label>Titulo y notas</label>
+            <Input
+              name="title"
+              value={formValues.title}
+              onChange={onInputChanged}
+              type="text"
+              placeholder="Título del evento"
+              autoComplete="off"
+            />
+          </Grid>
+          <Grid marginY={1} item xs={12}>
+            <TextArea
+              name="notes"
+              value={formValues.notes}
+              onChange={onInputChanged}
+              type="text"
+              rows="5"
+            />
+          </Grid>
+          <Grid marginY={1} item xs={12}>
+            <Button htmlType="submit" loading={formSubmitted}>
+              <i className="far fa-save"></i>
+              <span> Guardar</span>
+            </Button>
+          </Grid>
         </form>
+      </Grid>
     </Modal>
-  )
-}
+  );
+};
