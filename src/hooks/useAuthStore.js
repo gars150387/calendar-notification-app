@@ -11,7 +11,7 @@ export const useAuthStore = () => {
     const startLogin = async({ email, password }) => {
         dispatch( onChecking() );
         try {
-            const { data } = await calendarApi.post('/auth',{ email, password });
+            const { data } = await calendarApi.post('/auth/login',{ email, password });
             localStorage.setItem('token', data.token );
             localStorage.setItem('token-init-date', new Date().getTime() );
             dispatch( onLogin({ name: data.name, uid: data.uid }) );
@@ -27,7 +27,7 @@ export const useAuthStore = () => {
     const startRegister = async({ email, password, name }) => {
         dispatch( onChecking() );
         try {
-            const { data } = await calendarApi.post('/auth/new',{ email, password, name });
+            const { data } = await calendarApi.post('/auth/new-user',{ email, password, name });
             localStorage.setItem('token', data.token );
             localStorage.setItem('token-init-date', new Date().getTime() );
             dispatch( onLogin({ name: data.name, uid: data.uid }) );
